@@ -439,7 +439,11 @@ function processCommand(input) {
     addTask(name, dur);
   } else if (cmd === 'buffer') {
     const n = parseInt(parts[1]);
-    if (!isNaN(n) && n >= 0) { state.buffer = n; saveState(); render(); }
+    if (!isNaN(n) && n >= 0) {
+      // Round up to next multiple of 5 (0 allowed)
+      state.buffer = n === 0 ? 0 : Math.ceil(n / 5) * 5;
+      saveState(); render();
+    }
   } else if (cmd === 'go' || cmd === 'play') {
     doGo();
   } else if (cmd === 'pause' || cmd === 'stop') {
@@ -514,21 +518,49 @@ function deleteTask(idx) {
   reschedule();
 }
 
+// Round up to next multiple of `step`, but if less than half
+// the step remains, snap to the nearer one (i.e. use > half check)
+function smartCeil(mins, step) {
+  if (step <= 0) return mins;
+  const remainder = mins % step;
+  if (remainder === 0) return mins;
+  // If more than half the buffer remains, round up to next
+  // If half or less remains, skip to the one after
+  return mins + (step - remainder);
+}
+
 function reschedule() {
   const now = new Date();
   const mins = now.getHours() * 60 + now.getMinutes();
-  const round = state.buffer > 0 ? state.buffer : 1;
-  let start = Math.ceil(mins / round) * round;
-  if (start === mins && now.getSeconds() > 0) start += round;
+  const buf = state.buffer > 0 ? state.buffer : 1;
+
+  // Round current time up to next buffer boundary
+  let start = smartCeil(mins, buf);
+  if (start === mins && now.getSeconds() > 0) start += buf;
 
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  for (const task of state.tasks) {
+  for (let i = 0; i < state.tasks.length; i++) {
+    const task = state.tasks[i];
     const startDate = new Date(today.getTime() + start * 60000);
     task.scheduledStart = startDate.toISOString();
-    const endDate = new Date(startDate.getTime() + task.durationMinutes * 60000);
+    const endMins = start + task.durationMinutes;
+    const endDate = new Date(today.getTime() + endMins * 60000);
     task.scheduledEnd = endDate.toISOString();
-    start += task.durationMinutes + state.buffer;
+
+    // Next task starts at end time rounded up to buffer boundary
+    if (i < state.tasks.length - 1) {
+      const remainder = endMins % buf;
+      if (remainder === 0) {
+        start = endMins;
+      } else if ((buf - remainder) > buf / 2) {
+        // More than half buffer remaining — round up to next
+        start = endMins + (buf - remainder);
+      } else {
+        // Half or less remaining — skip to the one after
+        start = endMins + (buf - remainder) + buf;
+      }
+    }
   }
   saveState();
   render();
@@ -547,7 +579,14 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  if (e.key === 'c' || e.key === 'a' || e.key === 'i') {
+  if (e.key === 'c' || e.key === 'a') {
+    e.preventDefault();
+    cmdInput.focus();
+    cmdInput.value = 'add ';
+    return;
+  }
+
+  if (e.key === 'i') {
     e.preventDefault();
     cmdInput.focus();
     return;
