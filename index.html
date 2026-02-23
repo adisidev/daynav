@@ -597,13 +597,20 @@ function reschedule() {
       continue;
     }
 
-    const startDate = new Date(today.getTime() + start * 60000);
-    task.scheduledStart = startDate.toISOString();
-    const endMins = start + task.durationMinutes;
-    const endDate = new Date(today.getTime() + endMins * 60000);
-    task.scheduledEnd = endDate.toISOString();
-
-    start = nextBufferSlot(endMins, buf);
+    // If this task is currently being timed, lock its start to when go was first pressed
+    if (task.id === timerTaskId && timerFirstStarted !== null) {
+      const firstStart = new Date(timerFirstStarted);
+      task.scheduledStart = firstStart.toISOString();
+      task.scheduledEnd = new Date(timerFirstStarted + task.durationMinutes * 60000).toISOString();
+      const firstStartMins = firstStart.getHours() * 60 + firstStart.getMinutes();
+      start = nextBufferSlot(firstStartMins + task.durationMinutes, buf);
+    } else {
+      const startDate = new Date(today.getTime() + start * 60000);
+      task.scheduledStart = startDate.toISOString();
+      const endMins = start + task.durationMinutes;
+      task.scheduledEnd = new Date(today.getTime() + endMins * 60000).toISOString();
+      start = nextBufferSlot(endMins, buf);
+    }
   }
   saveState();
   render();
