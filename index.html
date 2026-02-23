@@ -509,6 +509,18 @@ function addTask(name, durationMinutes) {
   reschedule();
 }
 
+function toggleTask(idx) {
+  const t = state.tasks[idx];
+  t.completed = !t.completed;
+  if (t.completed) {
+    t.scheduledEnd = new Date().toISOString();
+    if (timerRunning && timerTaskId === t.id) doPause();
+    reschedule();
+  } else {
+    reschedule();
+  }
+}
+
 function deleteTask(idx) {
   const t = state.tasks[idx];
   if (timerRunning && timerTaskId === t.id) { doPause(); }
@@ -529,6 +541,19 @@ function smartCeil(mins, step) {
   return mins + (step - remainder);
 }
 
+function nextBufferSlot(endMins, buf) {
+  if (buf <= 0) return endMins;
+  const remainder = endMins % buf;
+  if (remainder === 0) return endMins;
+  if ((buf - remainder) > buf / 2) {
+    // More than half buffer remaining — round up to next
+    return endMins + (buf - remainder);
+  } else {
+    // Half or less remaining — skip to the one after
+    return endMins + (buf - remainder) + buf;
+  }
+}
+
 function reschedule() {
   const now = new Date();
   const mins = now.getHours() * 60 + now.getMinutes();
@@ -542,25 +567,22 @@ function reschedule() {
 
   for (let i = 0; i < state.tasks.length; i++) {
     const task = state.tasks[i];
+
+    if (task.completed && task.scheduledEnd) {
+      // Completed tasks keep their times; use their end to seed next start
+      const endTime = new Date(task.scheduledEnd);
+      const endMins = (endTime.getTime() - today.getTime()) / 60000;
+      start = nextBufferSlot(endMins, buf);
+      continue;
+    }
+
     const startDate = new Date(today.getTime() + start * 60000);
     task.scheduledStart = startDate.toISOString();
     const endMins = start + task.durationMinutes;
     const endDate = new Date(today.getTime() + endMins * 60000);
     task.scheduledEnd = endDate.toISOString();
 
-    // Next task starts at end time rounded up to buffer boundary
-    if (i < state.tasks.length - 1) {
-      const remainder = endMins % buf;
-      if (remainder === 0) {
-        start = endMins;
-      } else if ((buf - remainder) > buf / 2) {
-        // More than half buffer remaining — round up to next
-        start = endMins + (buf - remainder);
-      } else {
-        // Half or less remaining — skip to the one after
-        start = endMins + (buf - remainder) + buf;
-      }
-    }
+    start = nextBufferSlot(endMins, buf);
   }
   saveState();
   render();
@@ -696,10 +718,7 @@ document.addEventListener('keydown', e => {
   if (e.key === ' ') {
     e.preventDefault();
     if (state.selectedIdx >= 0 && state.selectedIdx < state.tasks.length) {
-      const t = state.tasks[state.selectedIdx];
-      t.completed = !t.completed;
-      if (timerRunning && timerTaskId === t.id && t.completed) doPause();
-      saveState(); render();
+      toggleTask(state.selectedIdx);
     }
     return;
   }
@@ -809,9 +828,7 @@ function renderTaskList() {
     el.addEventListener('click', e => {
       e.stopPropagation();
       const idx = parseInt(el.dataset.idx);
-      state.tasks[idx].completed = !state.tasks[idx].completed;
-      if (timerRunning && timerTaskId === state.tasks[idx].id && state.tasks[idx].completed) doPause();
-      saveState(); render();
+      toggleTask(idx);
     });
   });
 
