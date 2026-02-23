@@ -804,7 +804,9 @@ function renderSummary() {
   const el = document.getElementById('summary');
   const total = state.tasks.length;
   const done = state.tasks.filter(t => t.completed).length;
-  const totalMins = state.tasks.reduce((s, t) => s + t.durationMinutes, 0);
+  const remainingMins = state.tasks.filter(t => !t.completed).reduce((s, t) => s + t.durationMinutes, 0);
+  const finishedMins = state.tasks.filter(t => t.completed && t.scheduledStart && t.scheduledEnd)
+    .reduce((s, t) => s + Math.round((new Date(t.scheduledEnd) - new Date(t.scheduledStart)) / 60000), 0);
   const last = state.tasks.length > 0 ? state.tasks[state.tasks.length - 1] : null;
   const endTime = last && last.scheduledEnd ? formatTime(last.scheduledEnd) : '--';
 
@@ -833,7 +835,8 @@ function renderSummary() {
     <div class="summary-left">
       <span><span class="val">${total}</span> tasks</span>
       <span><span class="val">${done}</span> done</span>
-      <span><span class="val">${formatDur(totalMins)}</span> total</span>
+      <span><span class="val">${formatDur(remainingMins)}</span> remaining</span>
+      ${finishedMins > 0 ? `<span><span class="val">${formatDur(finishedMins)}</span> finished</span>` : ''}
       <span>ends <span class="val">${endTime}</span></span>
       <span>buffer <span class="val">${state.buffer}m</span></span>
     </div>
