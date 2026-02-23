@@ -316,7 +316,8 @@ function saveState() {
   const timerSnap = timerTaskId ? {
     taskId: timerTaskId,
     elapsed: getTimerElapsed(),
-    running: timerRunning
+    running: timerRunning,
+    firstStarted: timerFirstStarted
   } : null;
   localStorage.setItem('daynav', JSON.stringify({
     tasks: state.tasks,
@@ -331,6 +332,7 @@ let timerRunning = false;
 let timerStartedAt = null;
 let timerElapsedBefore = 0;
 let timerTaskId = null;
+let timerFirstStarted = null; // when go was first pressed for this task
 let timerInterval = null;
 
 // Restore timer state from localStorage
@@ -342,6 +344,7 @@ let timerInterval = null;
   if (!task) return;
   timerTaskId = saved.taskId;
   timerElapsedBefore = saved.elapsed;
+  timerFirstStarted = saved.firstStarted || null;
   if (saved.running) {
     timerRunning = true;
     timerStartedAt = Date.now();
@@ -367,6 +370,7 @@ function doGo() {
   if (timerRunning && timerTaskId === ct.id) return;
   if (timerTaskId !== ct.id) {
     timerElapsedBefore = 0;
+    timerFirstStarted = Date.now();
   }
   timerRunning = true;
   timerTaskId = ct.id;
@@ -519,6 +523,9 @@ function toggleTask(idx) {
   t.completed = !t.completed;
   if (t.completed) {
     t.scheduledEnd = new Date().toISOString();
+    if (timerTaskId === t.id && timerFirstStarted) {
+      t.scheduledStart = new Date(timerFirstStarted).toISOString();
+    }
     if (timerRunning && timerTaskId === t.id) doPause();
     reschedule();
   } else {
@@ -666,6 +673,7 @@ document.addEventListener('keydown', e => {
       const t = state.tasks[state.selectedIdx];
       if (timerTaskId === t.id) {
         timerElapsedBefore = 0;
+        timerFirstStarted = Date.now();
         timerStartedAt = timerRunning ? Date.now() : null;
         saveState(); render();
       }
