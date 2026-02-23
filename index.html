@@ -593,12 +593,7 @@ function reschedule() {
   for (let i = 0; i < state.tasks.length; i++) {
     const task = state.tasks[i];
 
-    if (task.completed && task.scheduledEnd) {
-      // Completed tasks keep their times; next task starts from now or their end, whichever is later
-      const endTime = new Date(task.scheduledEnd);
-      const endMins = (endTime.getTime() - today.getTime()) / 60000;
-      const fromEnd = nextBufferSlot(endMins, buf);
-      start = Math.max(start, fromEnd);
+    if (task.completed) {
       continue;
     }
 
