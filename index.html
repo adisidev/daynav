@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DayNav</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #242836;
+  --border: #2e3345;
+  --text: #e1e4ed;
+  --text-dim: #7a8099;
+  --accent: #6c8cff;
+  --accent-dim: #4a6adf;
+  --green: #4ade80;
+  --red: #f87171;
+  --orange: #fb923c;
+  --complete: #374151;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 16px;
+}
+
+/* Command Palette */
+.command-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  padding: 12px 0;
+}
+
+.command-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.command-input:focus {
+  border-color: var(--accent);
+}
+
+.command-input::placeholder {
+  color: var(--text-dim);
+}
+
+/* Summary Bar */
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 0 16px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.summary span { white-space: nowrap; }
+.summary .val { color: var(--text); }
+
+.summary-left { display: flex; gap: 20px; flex: 1; }
+
+.timer-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timer-inline .timer-display {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+.timer-inline .timer-display.running { color: var(--green); }
+.timer-inline .timer-display.overrun { color: var(--red); }
+
+.timer-inline button {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.timer-inline button:hover { background: var(--border); }
+
+/* Task List */
+.task-list { list-style: none; }
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  margin-bottom: 2px;
+  transition: background 0.1s, border-color 0.1s;
+  cursor: default;
+}
+
+.task-item.selected {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.task-item:hover { background: var(--surface); }
+
+.task-index {
+  font-size: 11px;
+  color: var(--text-dim);
+  min-width: 18px;
+  text-align: right;
+}
+
+.task-check {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.task-check:hover { border-color: var(--accent); }
+.task-check.done {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+}
+
+.task-check.done::after {
+  content: '✓';
+  font-size: 11px;
+  color: white;
+}
+
+.task-name {
+  flex: 1;
+  font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-item.completed .task-name {
+  text-decoration: line-through;
+  color: var(--text-dim);
+}
+
+.task-time {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.task-duration {
+  font-size: 12px;
+  color: var(--accent);
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Help Overlay */
+.help-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-overlay.visible { display: flex; }
+
+.help-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 480px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.help-box h2 {
+  font-size: 15px;
+  margin-bottom: 16px;
+  color: var(--accent);
+}
+
+.help-box table { width: 100%; border-collapse: collapse; }
+.help-box td {
+  padding: 4px 0;
+  font-size: 13px;
+}
+.help-box td:first-child {
+  font-weight: 600;
+  color: var(--accent);
+  width: 100px;
+  white-space: nowrap;
+}
+
+.help-box .section-label {
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding-top: 12px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="command-bar">
+    <input class="command-input" id="cmd" placeholder="add Task Name 30m · buffer · go · pause · reschedule · clear · ? for help" autocomplete="off" spellcheck="false">
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <ul class="task-list" id="task-list"></ul>
+</div>
+
+<div class="help-overlay" id="help-overlay">
+  <div class="help-box">
+    <h2>Keyboard Shortcuts</h2>
+    <table>
+      <tr><td class="section-label" colspan="2">Navigation</td></tr>
+      <tr><td>/ or ⌘K</td><td>Focus command palette</td></tr>
+      <tr><td>Escape</td><td>Blur palette / deselect task</td></tr>
+      <tr><td>c / a / i</td><td>Focus command palette</td></tr>
+      <tr><td>b</td><td>Set buffer (opens palette)</td></tr>
+      <tr><td>e</td><td>Edit selected task</td></tr>
+      <tr><td class="section-label" colspan="2">Timer</td></tr>
+      <tr><td>g</td><td>Start timer (go)</td></tr>
+      <tr><td>p</td><td>Pause timer</td></tr>
+      <tr><td>r</td><td>Reschedule from now</td></tr>
+      <tr><td class="section-label" colspan="2">Tasks</td></tr>
+      <tr><td>j / k</td><td>Select next / prev task</td></tr>
+      <tr><td>J / K</td><td>Select next / prev task</td></tr>
+      <tr><td>1-9</td><td>Jump to task by number</td></tr>
+      <tr><td>Shift+1-9</td><td>Move selected task to position</td></tr>
+      <tr><td>l / h</td><td>Move task down / up</td></tr>
+      <tr><td>d / D</td><td>Delete selected task</td></tr>
+      <tr><td>Space</td><td>Toggle complete</td></tr>
+      <tr><td class="section-label" colspan="2">Commands</td></tr>
+      <tr><td colspan="2" style="color:var(--text-dim); font-size:12px; padding-top:4px;">
+        add &lt;name&gt; &lt;dur&gt; · buffer &lt;min&gt; · go · pause · delete &lt;#&gt; · rename &lt;#&gt; &lt;name&gt; · clear · reschedule
+      </td></tr>
+    </table>
+    <p style="text-align:center; margin-top:16px; font-size:12px; color:var(--text-dim);">Press ? or Escape to close</p>
+  </div>
+</div>
+
+<script>
+// --- State ---
+let state = loadState();
+
+function defaultState() {
+  return { tasks: [], buffer: 5, selectedIdx: -1, timer: null };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('daynav');
+    if (raw) {
+      const s = JSON.parse(raw);
+      s.selectedIdx = s.selectedIdx ?? -1;
+      s.timer = s.timer || null;
+      return s;
+    }
+  } catch {}
+  return defaultState();
+}
+
+function saveState() {
+  // Snapshot current timer elapsed into state before saving
+  const timerSnap = timerTaskId ? {
+    taskId: timerTaskId,
+    elapsed: getTimerElapsed(),
+    running: timerRunning
+  } : null;
+  localStorage.setItem('daynav', JSON.stringify({
+    tasks: state.tasks,
+    buffer: state.buffer,
+    selectedIdx: state.selectedIdx,
+    timer: timerSnap
+  }));
+}
+
+// --- Timer ---
+let timerRunning = false;
+let timerStartedAt = null;
+let timerElapsedBefore = 0;
+let timerTaskId = null;
+let timerInterval = null;
+
+// Restore timer state from localStorage
+(function restoreTimer() {
+  const saved = state.timer;
+  if (!saved) return;
+  // Verify task still exists
+  const task = state.tasks.find(t => t.id === saved.taskId);
+  if (!task) return;
+  timerTaskId = saved.taskId;
+  timerElapsedBefore = saved.elapsed;
+  if (saved.running) {
+    timerRunning = true;
+    timerStartedAt = Date.now();
+    startTick();
+  }
+})();
+
+function currentTask() {
+  return state.tasks.find(t => !t.completed);
+}
+
+function getTimerElapsed() {
+  let total = timerElapsedBefore;
+  if (timerRunning && timerStartedAt) {
+    total += (Date.now() - timerStartedAt) / 1000;
+  }
+  return total;
+}
+
+function doGo() {
+  const ct = currentTask();
+  if (!ct) return;
+  if (timerRunning && timerTaskId === ct.id) return;
+  if (timerTaskId !== ct.id) {
+    timerElapsedBefore = 0;
+  }
+  timerRunning = true;
+  timerTaskId = ct.id;
+  timerStartedAt = Date.now();
+  reschedule();
+  startTick();
+  render();
+}
+
+function doPause() {
+  if (timerRunning && timerStartedAt) {
+    timerElapsedBefore += (Date.now() - timerStartedAt) / 1000;
+    timerStartedAt = null;
+  }
+  timerRunning = false;
+  stopTick();
+  saveState();
+  render();
+}
+
+function startTick() {
+  stopTick();
+  timerInterval = setInterval(() => { renderSummary(); }, 1000);
+}
+
+function stopTick() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+// --- Commands ---
+const cmdInput = document.getElementById('cmd');
+
+cmdInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { cmdInput.blur(); return; }
+  if (e.key === 'J' || e.key === 'K') {
+    e.preventDefault();
+    cmdInput.blur();
+    if (state.tasks.length > 0) {
+      state.selectedIdx = e.key === 'J' ? 0 : state.tasks.length - 1;
+      saveState(); render();
+    }
+    return;
+  }
+  if (e.key === 'Enter') {
+    const val = cmdInput.value.trim();
+    if (val) processCommand(val);
+    cmdInput.value = '';
+    cmdInput.blur();
+  }
+});
+
+function parseDuration(s) {
+  const m = s.match(/^(\d+(?:\.\d+)?)\s*(h|m|hr|hrs|min|mins)?$/i);
+  if (!m) return null;
+  const num = parseFloat(m[1]);
+  const unit = (m[2] || 'm').toLowerCase();
+  if (unit.startsWith('h')) return Math.round(num * 60);
+  return Math.round(num);
+}
+
+function processCommand(input) {
+  const parts = input.split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+
+  if (cmd === 'add') {
+    if (parts.length < 3) return;
+    const durStr = parts[parts.length - 1];
+    const dur = parseDuration(durStr);
+    if (!dur) return;
+    const name = parts.slice(1, -1).join(' ');
+    addTask(name, dur);
+  } else if (cmd === 'buffer') {
+    const n = parseInt(parts[1]);
+    if (!isNaN(n) && n >= 0) { state.buffer = n; saveState(); render(); }
+  } else if (cmd === 'go' || cmd === 'play') {
+    doGo();
+  } else if (cmd === 'pause' || cmd === 'stop') {
+    doPause();
+  } else if (cmd === 'delete' || cmd === 'del' || cmd === 'rm') {
+    const idx = parseInt(parts[1]) - 1;
+    if (idx >= 0 && idx < state.tasks.length) { deleteTask(idx); }
+  } else if (cmd === 'rename') {
+    const idx = parseInt(parts[1]) - 1;
+    const newName = parts.slice(2).join(' ');
+    if (idx >= 0 && idx < state.tasks.length && newName) {
+      state.tasks[idx].name = newName;
+      saveState(); render();
+    }
+  } else if (cmd === 'edit') {
+    const idx = parseInt(parts[1]) - 1;
+    if (idx >= 0 && idx < state.tasks.length && parts.length >= 4) {
+      const durStr = parts[parts.length - 1];
+      const dur = parseDuration(durStr);
+      if (dur) {
+        state.tasks[idx].name = parts.slice(2, -1).join(' ');
+        state.tasks[idx].durationMinutes = dur;
+      } else {
+        // No valid duration at end, treat everything as name
+        state.tasks[idx].name = parts.slice(2).join(' ');
+      }
+      reschedule();
+    }
+  } else if (cmd === 'clear') {
+    state.tasks = [];
+    state.selectedIdx = -1;
+    timerRunning = false;
+    timerTaskId = null;
+    timerElapsedBefore = 0;
+    stopTick();
+    saveState(); render();
+  } else if (cmd === 'reschedule' || cmd === 'rs') {
+    reschedule();
+  } else if (cmd === '?') {
+    toggleHelp();
+  } else {
+    // Fallback: treat as "add <input>"
+    if (parts.length >= 2) {
+      const durStr = parts[parts.length - 1];
+      const dur = parseDuration(durStr);
+      if (dur) {
+        const name = parts.slice(0, -1).join(' ');
+        addTask(name, dur);
+      }
+    }
+  }
+}
+
+function addTask(name, durationMinutes) {
+  state.tasks.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name,
+    durationMinutes,
+    scheduledStart: null,
+    scheduledEnd: null,
+    completed: false
+  });
+  reschedule();
+}
+
+function deleteTask(idx) {
+  const t = state.tasks[idx];
+  if (timerRunning && timerTaskId === t.id) { doPause(); }
+  if (timerTaskId === t.id) { timerTaskId = null; timerElapsedBefore = 0; }
+  state.tasks.splice(idx, 1);
+  if (state.selectedIdx >= state.tasks.length) state.selectedIdx = state.tasks.length - 1;
+  reschedule();
+}
+
+function reschedule() {
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const round = state.buffer > 0 ? state.buffer : 1;
+  let start = Math.ceil(mins / round) * round;
+  if (start === mins && now.getSeconds() > 0) start += round;
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  for (const task of state.tasks) {
+    const startDate = new Date(today.getTime() + start * 60000);
+    task.scheduledStart = startDate.toISOString();
+    const endDate = new Date(startDate.getTime() + task.durationMinutes * 60000);
+    task.scheduledEnd = endDate.toISOString();
+    start += task.durationMinutes + state.buffer;
+  }
+  saveState();
+  render();
+}
+
+// --- Keyboard Shortcuts ---
+// Map shift+digit to the digit (handles different keyboard layouts)
+const shiftDigitMap = { '!':'1','@':'2','#':'3','$':'4','%':'5','^':'6','&':'7','*':'8','(':'9' };
+
+document.addEventListener('keydown', e => {
+  if (document.activeElement === cmdInput) return;
+
+  if (e.key === '/' || (e.key === 'k' && e.metaKey)) {
+    e.preventDefault();
+    cmdInput.focus();
+    return;
+  }
+
+  if (e.key === 'c' || e.key === 'a' || e.key === 'i') {
+    e.preventDefault();
+    cmdInput.focus();
+    return;
+  }
+
+  if (e.key === 'b') {
+    e.preventDefault();
+    cmdInput.focus();
+    cmdInput.value = 'buffer ';
+    return;
+  }
+
+  if (e.key === 'e') {
+    if (state.selectedIdx >= 0 && state.selectedIdx < state.tasks.length) {
+      e.preventDefault();
+      const t = state.tasks[state.selectedIdx];
+      cmdInput.focus();
+      cmdInput.value = `edit ${state.selectedIdx + 1} ${t.name} ${formatDur(t.durationMinutes)}`;
+      // Select just the name+duration part for easy editing
+      const prefix = `edit ${state.selectedIdx + 1} `;
+      cmdInput.setSelectionRange(prefix.length, cmdInput.value.length);
+    }
+    return;
+  }
+
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleHelp();
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    const h = document.getElementById('help-overlay');
+    if (h.classList.contains('visible')) { h.classList.remove('visible'); return; }
+    state.selectedIdx = -1;
+    saveState(); render();
+    return;
+  }
+
+  if (e.key === 'g') { doGo(); return; }
+  if (e.key === 'p') { doPause(); return; }
+  if (e.key === 'r') { reschedule(); return; }
+
+  if (e.key === 'j' || e.key === 'J') {
+    if (state.tasks.length === 0) return;
+    state.selectedIdx = Math.min(state.selectedIdx + 1, state.tasks.length - 1);
+    saveState(); render();
+    return;
+  }
+
+  if (e.key === 'k' || e.key === 'K') {
+    if (state.tasks.length === 0) return;
+    state.selectedIdx = Math.max(state.selectedIdx - 1, 0);
+    saveState(); render();
+    return;
+  }
+
+  if (e.key === 'l') {
+    const i = state.selectedIdx;
+    if (i >= 0 && i < state.tasks.length - 1) {
+      [state.tasks[i], state.tasks[i+1]] = [state.tasks[i+1], state.tasks[i]];
+      state.selectedIdx = i + 1;
+      reschedule();
+    }
+    return;
+  }
+
+  if (e.key === 'h') {
+    const i = state.selectedIdx;
+    if (i > 0) {
+      [state.tasks[i], state.tasks[i-1]] = [state.tasks[i-1], state.tasks[i]];
+      state.selectedIdx = i - 1;
+      reschedule();
+    }
+    return;
+  }
+
+  // Shift+number: reposition selected task to that slot
+  const shiftDigit = shiftDigitMap[e.key];
+  if (shiftDigit && state.selectedIdx >= 0 && state.selectedIdx < state.tasks.length) {
+    const target = parseInt(shiftDigit) - 1;
+    if (target >= 0 && target < state.tasks.length && target !== state.selectedIdx) {
+      const task = state.tasks.splice(state.selectedIdx, 1)[0];
+      state.tasks.splice(target, 0, task);
+      state.selectedIdx = target;
+      reschedule();
+    }
+    return;
+  }
+
+  // 1-9 to jump to task
+  if (e.key >= '1' && e.key <= '9') {
+    const idx = parseInt(e.key) - 1;
+    if (idx < state.tasks.length) {
+      state.selectedIdx = idx;
+      saveState(); render();
+    }
+    return;
+  }
+
+  if (e.key === 'd' || e.key === 'D') {
+    if (state.selectedIdx >= 0 && state.selectedIdx < state.tasks.length) {
+      deleteTask(state.selectedIdx);
+    }
+    return;
+  }
+
+  if (e.key === ' ') {
+    e.preventDefault();
+    if (state.selectedIdx >= 0 && state.selectedIdx < state.tasks.length) {
+      const t = state.tasks[state.selectedIdx];
+      t.completed = !t.completed;
+      if (timerRunning && timerTaskId === t.id && t.completed) doPause();
+      saveState(); render();
+    }
+    return;
+  }
+});
+
+function toggleHelp() {
+  document.getElementById('help-overlay').classList.toggle('visible');
+}
+
+document.getElementById('help-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) toggleHelp();
+});
+
+// --- Rendering ---
+function formatTime(iso) {
+  if (!iso) return '--:--';
+  const d = new Date(iso);
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2,'0')}${ampm}`;
+}
+
+function formatDur(mins) {
+  if (mins >= 60) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h${m}m` : `${h}h`;
+  }
+  return `${mins}m`;
+}
+
+function formatTimerSeconds(totalSeconds) {
+  const abs = Math.abs(totalSeconds);
+  const m = Math.floor(abs / 60);
+  const s = Math.floor(abs % 60);
+  const sign = totalSeconds < 0 ? '-' : '';
+  return `${sign}${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function render() {
+  renderSummary();
+  renderTaskList();
+}
+
+function renderSummary() {
+  const el = document.getElementById('summary');
+  const total = state.tasks.length;
+  const done = state.tasks.filter(t => t.completed).length;
+  const totalMins = state.tasks.reduce((s, t) => s + t.durationMinutes, 0);
+  const last = state.tasks.length > 0 ? state.tasks[state.tasks.length - 1] : null;
+  const endTime = last && last.scheduledEnd ? formatTime(last.scheduledEnd) : '--';
+
+  // Timer display
+  const ct = currentTask();
+  let timerHtml = '';
+  if (ct && timerTaskId === ct.id) {
+    const elapsed = getTimerElapsed();
+    const totalSec = ct.durationMinutes * 60;
+    const remaining = totalSec - elapsed;
+    const cls = timerRunning ? (remaining < 0 ? 'overrun' : 'running') : (remaining < 0 ? 'overrun' : '');
+    timerHtml = `<div class="timer-inline">
+      <span class="timer-display ${cls}">${formatTimerSeconds(remaining)}</span>
+      ${timerRunning
+        ? '<button onclick="doPause()">Pause</button>'
+        : '<button onclick="doGo()">Go</button>'}
+    </div>`;
+  } else if (ct) {
+    timerHtml = `<div class="timer-inline">
+      <span class="timer-display">${formatDur(ct.durationMinutes)}</span>
+      <button onclick="doGo()">Go</button>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="summary-left">
+      <span><span class="val">${total}</span> tasks</span>
+      <span><span class="val">${done}</span> done</span>
+      <span><span class="val">${formatDur(totalMins)}</span> total</span>
+      <span>ends <span class="val">${endTime}</span></span>
+      <span>buffer <span class="val">${state.buffer}m</span></span>
+    </div>
+    ${timerHtml}
+  `;
+}
+
+function renderTaskList() {
+  const ul = document.getElementById('task-list');
+
+  ul.innerHTML = state.tasks.map((t, i) => {
+    const isSelected = i === state.selectedIdx;
+    let cls = 'task-item';
+    if (t.completed) cls += ' completed';
+    if (isSelected) cls += ' selected';
+
+    return `<li class="${cls}" data-idx="${i}">
+      <span class="task-index">${i + 1}</span>
+      <span class="task-check ${t.completed ? 'done' : ''}" data-action="toggle" data-idx="${i}"></span>
+      <span class="task-name">${esc(t.name)}</span>
+      <span class="task-time">${formatTime(t.scheduledStart)}–${formatTime(t.scheduledEnd)}</span>
+      <span class="task-duration">${formatDur(t.durationMinutes)}</span>
+    </li>`;
+  }).join('');
+
+  ul.querySelectorAll('[data-action="toggle"]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const idx = parseInt(el.dataset.idx);
+      state.tasks[idx].completed = !state.tasks[idx].completed;
+      if (timerRunning && timerTaskId === state.tasks[idx].id && state.tasks[idx].completed) doPause();
+      saveState(); render();
+    });
+  });
+
+  ul.querySelectorAll('.task-item').forEach(el => {
+    el.addEventListener('click', () => {
+      state.selectedIdx = parseInt(el.dataset.idx);
+      saveState(); render();
+    });
+  });
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// --- Init ---
+render();
+
+// Refresh summary every 30s
+setInterval(renderSummary, 30000);
+</script>
+</body>
+</html>
