@@ -598,12 +598,14 @@ function reschedule() {
     }
 
     // If this task is currently being timed, lock its start to when go was first pressed
+    // and set end to now + remaining time in timer
     if (task.id === timerTaskId && timerFirstStarted !== null) {
-      const firstStart = new Date(timerFirstStarted);
-      task.scheduledStart = firstStart.toISOString();
-      task.scheduledEnd = new Date(timerFirstStarted + task.durationMinutes * 60000).toISOString();
-      const firstStartMins = firstStart.getHours() * 60 + firstStart.getMinutes();
-      start = nextBufferSlot(firstStartMins + task.durationMinutes, buf);
+      task.scheduledStart = new Date(timerFirstStarted).toISOString();
+      const remainingSec = task.durationMinutes * 60 - getTimerElapsed();
+      const endDate = new Date(Date.now() + remainingSec * 1000);
+      task.scheduledEnd = endDate.toISOString();
+      const endMins = endDate.getHours() * 60 + endDate.getMinutes();
+      start = nextBufferSlot(endMins, buf);
     } else {
       const startDate = new Date(today.getTime() + start * 60000);
       task.scheduledStart = startDate.toISOString();
