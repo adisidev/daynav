@@ -191,6 +191,15 @@ body {
   text-align: right;
 }
 
+.task-actual {
+  font-size: 11px;
+  min-width: 40px;
+  text-align: right;
+}
+
+.task-actual.under { color: var(--green); }
+.task-actual.over { color: var(--red); }
+
 /* Help Overlay */
 .help-overlay {
   display: none;
@@ -851,6 +860,11 @@ function renderTaskList() {
       <span class="task-name">${esc(t.name)}</span>
       <span class="task-time">${formatTime(t.scheduledStart)}–${formatTime(t.scheduledEnd)}</span>
       <span class="task-duration">${formatDur(t.durationMinutes)}</span>
+      ${t.completed && t.scheduledStart && t.scheduledEnd ? (() => {
+        const actual = Math.round((new Date(t.scheduledEnd) - new Date(t.scheduledStart)) / 60000);
+        const cls = actual > t.durationMinutes ? 'over' : 'under';
+        return `<span class="task-actual ${cls}">${formatDur(actual)}</span>`;
+      })() : ''}
     </li>`;
   }).join('');
 
