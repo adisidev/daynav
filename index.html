@@ -77,6 +77,37 @@ body {
 
 .summary span { white-space: nowrap; }
 .summary .val { color: var(--text); }
+.summary .metric-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+
+.summary .metric-tooltip-tip {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translateX(-50%);
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+  z-index: 20;
+}
+
+.summary .metric-tooltip:hover .metric-tooltip-tip,
+.summary .metric-tooltip:focus .metric-tooltip-tip {
+  opacity: 1;
+}
 
 .summary-left { display: flex; gap: 20px; flex: 1; }
 
@@ -881,8 +912,7 @@ function renderSummary() {
   const efficiencyStyle = efficiencyPct === null
     ? 'var(--text-dim)'
     : efficiencyColor(efficiencyPct);
-  const last = state.tasks.length > 0 ? state.tasks[state.tasks.length - 1] : null;
-  const endTime = last && last.scheduledEnd ? formatTime(last.scheduledEnd) : '--';
+  const efficiencyTooltip = `tracked ${formatDur(trackedMins)} | finished ${formatDur(finishedMins)}`;
 
   // Timer display
   const ct = currentTask();
@@ -910,10 +940,8 @@ function renderSummary() {
       <span><span class="val">${total}</span> tasks</span>
       <span><span class="val">${done}</span> done</span>
       <span><span class="val">${formatDur(remainingMins)}</span> remaining</span>
-      <span><span class="val">${formatDur(finishedMins)}</span> finished</span>
-      <span><span class="val">${formatDur(trackedMins)}</span> tracked</span>
-      <span>efficiency <span class="val" style="color:${efficiencyStyle}">${efficiencyText}</span></span>
-      <!-- <span>ends <span class="val">${endTime}</span></span> -->
+      <span class="metric-tooltip" tabindex="0">efficiency <span class="val" style="color:${efficiencyStyle}">${efficiencyText}</span><span class="metric-tooltip-tip">${efficiencyTooltip}</span></span>
+      <!-- ends time display hidden for now -->
       <span>buffer <span class="val">${state.buffer}m</span></span>
     </div>
     ${timerHtml}
